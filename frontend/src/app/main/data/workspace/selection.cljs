@@ -20,6 +20,7 @@
    [app.main.data.workspace.changes :as dch]
    [app.main.data.workspace.common :as dwc]
    [app.main.data.workspace.state-helpers :as wsh]
+   [app.main.data.workspace.zoom :as dwz]
    [app.main.streams :as ms]
    [app.main.worker :as uw]
    [beicon.core :as rx]
@@ -173,8 +174,9 @@
   (ptk/reify ::select-all
     ptk/WatchEvent
     (watch [_ state _]
-      (let [page-id  (:current-page-id state)
-            objects  (wsh/lookup-page-objects state page-id)
+      (let [focus (:workspace-focus-selected state)
+            objects  (-> (wsh/lookup-page-objects state)
+                         (cph/focus-objects focus))
 
             selected (let [frame-ids (into #{} (comp
                                                 (map (d/getf objects))
@@ -495,3 +497,22 @@
     (update [_ state]
       (let [hover-value (if value #{id} #{})]
         (assoc-in state [:workspace-local :hover] hover-value)))))
+
+(defn activate-focus-mode
+  []
+  (ptk/reify ::activate-focus-mode
+    ptk/UpdateEvent
+    (update [_ state]
+      (let [selected (wsh/lookup-selected state)]
+        (cond-> state
+          (and (empty? (:workspace-focus-selected state))
+               (d/not-empty? selected))
+          (assoc :workspace-focus-selected selected)
+
+          (d/not-empty? (:workspace-focus-selected state))
+          (dissoc :workspace-focus-selected))))
+
+    ptk/WatchEvent
+    (watch [_ state _]
+      (when (d/not-empty? (:workspace-focus-selected state))
+        (rx/of dwz/zoom-to-selected-shape)))))

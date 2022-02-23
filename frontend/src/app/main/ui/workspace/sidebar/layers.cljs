@@ -314,11 +314,12 @@
 (mf/defc layers-toolbox
   {:wrap [mf/memo]}
   []
-  (let [page     (mf/deref refs/workspace-page)]
+  (let [page  (mf/deref refs/workspace-page)
+        objects (hooks/with-focus-objects (:objects page))]
     [:div#layers.tool-window
      [:div.tool-window-bar
       [:div.tool-window-icon i/layers]
       [:span (:name page)]]
      [:div.tool-window-content
       [:& layers-tree-wrapper {:key (:id page)
-                               :objects (:objects page)}]]]))
+                               :objects objects}]]]))

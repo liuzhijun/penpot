@@ -7,7 +7,9 @@
 (ns app.main.ui.hooks
   "A collection of general purpose react hooks."
   (:require
+   [app.common.pages.helpers :as cph]
    [app.main.data.shortcuts :as dsc]
+   [app.main.refs :as refs]
    [app.main.store :as st]
    [app.util.dom :as dom]
    [app.util.dom.dnd :as dnd]
@@ -235,3 +237,11 @@
     (let [ret (effect-fn)]
       (when (fn? ret) (ret)))
     (mf/use-effect deps effect-fn)))
+
+(defn with-focus-objects
+  [objects]
+  (let [focus (mf/deref refs/workspace-focus-selected)
+        objects (mf/use-memo
+                 (mf/deps focus objects)
+                 #(cph/focus-objects objects focus))]
+    objects))

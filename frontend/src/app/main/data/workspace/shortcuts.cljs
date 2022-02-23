@@ -356,6 +356,9 @@
              :command "\\"
              :fn #(st/emit! (dw/toggle-layout-flags :hide-ui))}
 
+   :focus-mode {:command ">"
+                :fn #(st/emit! (dw/activate-focus-mode))}
+
    })
 
 (def opacity-shortcuts

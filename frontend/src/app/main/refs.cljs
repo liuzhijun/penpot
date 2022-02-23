@@ -317,6 +317,9 @@
               (mapv (d/getf objects) shapes)))]
     (l/derived selector selected-data =)))
 
+(def workspace-focus-selected
+  (l/derived :workspace-focus-selected st/state))
+
 ;; ---- Viewer refs
 
 (def viewer-file

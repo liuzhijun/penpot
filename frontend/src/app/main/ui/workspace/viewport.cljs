@@ -11,6 +11,7 @@
    [app.common.geom.shapes :as gsh]
    [app.main.refs :as refs]
    [app.main.ui.context :as ctx]
+   [app.main.ui.hooks :as ui-hooks]
    [app.main.ui.measurements :as msr]
    [app.main.ui.shapes.embed :as embed]
    [app.main.ui.shapes.export :as use]
@@ -64,7 +65,8 @@
         ;; DEREFS
         drawing           (mf/deref refs/workspace-drawing)
         options           (mf/deref refs/workspace-page-options)
-        base-objects      (mf/deref refs/workspace-page-objects)
+        base-objects      (-> (mf/deref refs/workspace-page-objects)
+                              (ui-hooks/with-focus-objects))
         modifiers         (mf/deref refs/workspace-modifiers)
         objects-modified  (mf/use-memo
                            (mf/deps base-objects modifiers)

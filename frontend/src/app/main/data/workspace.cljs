@@ -9,7 +9,6 @@
    [app.common.attrs :as attrs]
    [app.common.data :as d]
    [app.common.geom.align :as gal]
-   [app.common.geom.matrix :as gmt]
    [app.common.geom.point :as gpt]
    [app.common.geom.proportions :as gpr]
    [app.common.geom.shapes :as gsh]
@@ -43,6 +42,7 @@
    [app.main.data.workspace.svg-upload :as svg]
    [app.main.data.workspace.transforms :as dwt]
    [app.main.data.workspace.undo :as dwu]
+   [app.main.data.workspace.zoom :as dwz]
    [app.main.repo :as rp]
    [app.main.streams :as ms]
    [app.main.worker :as uw]
@@ -450,11 +450,6 @@
 
 ;; --- Viewport Sizing
 
-(declare increase-zoom)
-(declare decrease-zoom)
-(declare set-zoom)
-(declare zoom-to-fit-all)
-
 (defn initialize-viewport
   [{:keys [width height] :as size}]
   (letfn [(update* [{:keys [vport] :as local}]
@@ -584,114 +579,8 @@
       (-> state
           (update :workspace-local dissoc :panning)))))
 
-(defn start-zooming [pt]
-  (ptk/reify ::start-zooming
-    ptk/WatchEvent
-    (watch [_ state stream]
-      (let [stopper (->> stream (rx/filter (ptk/type? ::finish-zooming)))]
-        (when-not (get-in state [:workspace-local :zooming])
-          (rx/concat
-           (rx/of #(-> % (assoc-in [:workspace-local :zooming] true)))
-           (->> stream
-                (rx/filter ms/pointer-event?)
-                (rx/filter #(= :delta (:source %)))
-                (rx/map :pt)
-                (rx/take-until stopper)
-                (rx/map (fn [delta]
-                          (let [scale (+ 1 (/ (:y delta) 100))] ;; this number may be adjusted after user testing
-                            (set-zoom pt scale)))))))))))
 
-(defn finish-zooming []
-  (ptk/reify ::finish-zooming
-    ptk/UpdateEvent
-    (update [_ state]
-      (-> state
-          (update :workspace-local dissoc :zooming)))))
 
-;; --- Zoom Management
-
-(defn- impl-update-zoom
-  [{:keys [vbox] :as local} center zoom]
-  (let [new-zoom (if (fn? zoom) (zoom (:zoom local)) zoom)
-        old-zoom (:zoom local)
-        center (if center center (gsh/center-rect vbox))
-        scale (/ old-zoom new-zoom)
-        mtx  (gmt/scale-matrix (gpt/point scale) center)
-        vbox' (gsh/transform-rect vbox mtx)]
-    (-> local
-        (assoc :zoom new-zoom)
-        (update :vbox merge (select-keys vbox' [:x :y :width :height])))))
-
-(defn increase-zoom
-  [center]
-  (ptk/reify ::increase-zoom
-    ptk/UpdateEvent
-    (update [_ state]
-      (update state :workspace-local
-              #(impl-update-zoom % center (fn [z] (min (* z 1.3) 200)))))))
-
-(defn decrease-zoom
-  [center]
-  (ptk/reify ::decrease-zoom
-    ptk/UpdateEvent
-    (update [_ state]
-      (update state :workspace-local
-              #(impl-update-zoom % center (fn [z] (max (/ z 1.3) 0.01)))))))
-
-(defn set-zoom
-  [center scale]
-  (ptk/reify ::set-zoom
-    ptk/UpdateEvent
-    (update [_ state]
-      (update state :workspace-local
-              #(impl-update-zoom % center (fn [z] (-> (* z scale)
-                                                      (max 0.01)
-                                                      (min 200))))))))
-
-(def reset-zoom
-  (ptk/reify ::reset-zoom
-    ptk/UpdateEvent
-    (update [_ state]
-      (update state :workspace-local
-              #(impl-update-zoom % nil 1)))))
-
-(def zoom-to-fit-all
-  (ptk/reify ::zoom-to-fit-all
-    ptk/UpdateEvent
-    (update [_ state]
-      (let [page-id (:current-page-id state)
-            objects (wsh/lookup-page-objects state page-id)
-            shapes  (cph/get-immediate-children objects)
-            srect   (gsh/selection-rect shapes)]
-        (if (empty? shapes)
-          state
-          (update state :workspace-local
-                  (fn [{:keys [vport] :as local}]
-                    (let [srect (gal/adjust-to-viewport vport srect {:padding 40})
-                          zoom  (/ (:width vport) (:width srect))]
-                      (-> local
-                          (assoc :zoom zoom)
-                          (update :vbox merge srect))))))))))
-
-(def zoom-to-selected-shape
-  (ptk/reify ::zoom-to-selected-shape
-    ptk/UpdateEvent
-    (update [_ state]
-      (let [selected (wsh/lookup-selected state)]
-        (if (empty? selected)
-          state
-          (let [page-id (:current-page-id state)
-                objects (wsh/lookup-page-objects state page-id)
-                srect   (->> selected
-                             (map #(get objects %))
-                             (gsh/selection-rect))]
-            (update state :workspace-local
-                    (fn [{:keys [vport] :as local}]
-                      (let [srect (gal/adjust-to-viewport vport srect {:padding 40})
-                            zoom  (/ (:width vport) (:width srect))]
-                        (-> local
-                            (assoc :zoom zoom)
-                            (update :vbox merge srect)))))))))))
 
 ;; --- Update Shape Attrs
 
@@ -1854,21 +1743,25 @@
 (d/export dwp/clone-media-object)
 (d/export dwc/image-uploaded)
 
-;; Selection
-
-(d/export dws/select-shape)
-(d/export dws/deselect-shape)
-(d/export dws/select-all)
-(d/export dws/deselect-all)
+;; Common
+(d/export dwc/add-shape)
+(d/export dwc/clear-edition-mode)
 (d/export dwc/select-shapes)
-(d/export dws/shift-select-shapes)
+(d/export dwc/start-edition-mode)
+
+;; Drawing
+(d/export dwd/select-for-drawing)
+
+;; Selection
+(d/export dws/activate-focus-mode)
+(d/export dws/deselect-all)
+(d/export dws/deselect-shape)
 (d/export dws/duplicate-selected)
 (d/export dws/handle-area-selection)
+(d/export dws/select-all)
 (d/export dws/select-inside-group)
-(d/export dwd/select-for-drawing)
-(d/export dwc/clear-edition-mode)
-(d/export dwc/add-shape)
-(d/export dwc/start-edition-mode)
+(d/export dws/select-shape)
+(d/export dws/shift-select-shapes)
 
 ;; Groups
 
@@ -1891,3 +1784,11 @@
 (d/export dwgu/remove-guide)
 (d/export dwgu/set-hover-guide)
 
+;; Zoom
+(d/export dwz/reset-zoom)
+(d/export dwz/zoom-to-selected-shape)
+(d/export dwz/start-zooming)
+(d/export dwz/finish-zooming)
+(d/export dwz/zoom-to-fit-all)
+(d/export dwz/decrease-zoom)
+(d/export dwz/increase-zoom)

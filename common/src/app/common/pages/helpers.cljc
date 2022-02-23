@@ -463,3 +463,16 @@
   [path name]
   (let [path-split (split-path path)]
     (merge-path-item (first path-split) name)))
+
+(defn focus-objects
+  [objects focus]
+  (let [ids-with-children
+        (when (d/not-empty? focus)
+          (into (conj focus uuid/zero)
+                (mapcat (partial get-children-ids objects))
+                focus))]
+
+    (cond-> objects
+      (some? ids-with-children)
+      (-> (select-keys ids-with-children)
+          (assoc-in [uuid/zero :shapes] focus)))))

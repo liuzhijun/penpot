@@ -91,6 +91,9 @@
 (def workspace-local
   (l/derived :workspace-local st/state))
 
+(def workspace-global
+  (l/derived :workspace-global st/state))
+
 (def workspace-drawing
   (l/derived :workspace-drawing st/state))
 
@@ -101,22 +104,17 @@
   [id]
   (l/derived #(contains? % id) selected-shapes))
 
-(def viewport-data
-  (l/derived #(select-keys % [:options-mode
-                              :zoom
+(def viewport-local
+  (l/derived #(select-keys % [:zoom
                               :vport
                               :vbox
-                              :edition
                               :edit-path
-                              :tooltip
                               :panning
                               :zooming
-                              :picking-color?
                               :transform
                               :hover
                               :modifiers
-                              :selrect
-                              :show-distances?])
+                              :selrect])
              workspace-local =))
 
 (def interactions-data

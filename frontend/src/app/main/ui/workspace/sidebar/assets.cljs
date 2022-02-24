@@ -1365,10 +1365,11 @@
                    (vals (get-in state [:workspace-libraries id :data :typographies])))))
              st/state =))
 
-(defn open-file-ref
+(defn make-open-file-ref
   [id]
-  (-> (l/in [:assets-files-open id])
-      (l/derived refs/workspace-local)))
+  (mf/with-memo [id]
+    (-> (l/in [:assets-files-open id])
+        (l/derived refs/workspace-global))))
 
 (defn apply-filters
   [coll filters reverse-sort?]
@@ -1387,7 +1388,7 @@
 
 (mf/defc file-library
   [{:keys [file local? default-open? filters] :as props}]
-  (let [open-file       (mf/deref (open-file-ref (:id file)))
+  (let [open-file       (mf/deref (make-open-file-ref (:id file)))
         open?           (-> open-file
                             :library
                             (d/nilv default-open?))

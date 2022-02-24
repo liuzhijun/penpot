@@ -38,21 +38,22 @@
   {::mf/wrap-props false}
   [props]
   (let [selected (mf/deref refs/selected-shapes)
-        local    (mf/deref refs/viewport-data)
+        file     (obj/get props "file")
+        layout   (obj/get props "layout")
 
-        {:keys [options-mode]} local
-        file   (obj/get props "file")
-        layout (obj/get props "layout")
+        ;; TODO: viewport-local probably should be workspace-local
+        {:keys [vport] :as local} (mf/deref refs/viewport-local)
+        {:keys [options-mode] :as wstate} (mf/deref refs/workspace-global)
 
         colorpalette? (:colorpalette layout)
-        textpalette? (:textpalette layout)
-        hide-ui? (:hide-ui layout)
+        textpalette?  (:textpalette layout)
+        hide-ui?      (:hide-ui layout)
 
         on-resize
         (mf/use-callback
          (mf/deps (:vport local))
          (fn [resize-type size]
-           (when (:vport local)
+           (when vport
              (st/emit! (dw/update-viewport-size resize-type size)))))
 
         node-ref (use-resize-observer on-resize)]
@@ -70,6 +71,7 @@
 
        [:& viewport {:file file
                      :local local
+                     :wstate wstate
                      :selected selected
                      :layout layout}]]]
 
@@ -119,7 +121,7 @@
 
     ;; Setting the layout preset by its name
     (mf/with-effect [layout-name]
-      (st/emit! (dw/setup-layout layout-name)))
+      (st/emit! (dw/initialize layout-name)))
 
     (mf/with-effect [project-id file-id]
       (st/emit! (dw/initialize-file project-id file-id))

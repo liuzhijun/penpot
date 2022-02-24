@@ -72,14 +72,16 @@
   (ptk/reify ::set-assets-box-open
     ptk/UpdateEvent
     (update [_ state]
-      (assoc-in state [:workspace-local :assets-files-open file-id box] open?))))
+      (prn "set-assets-box-open")
+      (assoc-in state [:workspace-global :assets-files-open file-id box] open?))))
 
 (defn set-assets-group-open
   [file-id box path open?]
   (ptk/reify ::set-assets-group-open
     ptk/UpdateEvent
     (update [_ state]
-      (assoc-in state [:workspace-local :assets-files-open file-id :groups box path] open?))))
+      (prn "set-assets-group-open")
+      (assoc-in state [:workspace-global :assets-files-open file-id :groups box path] open?))))
 
 (defn default-color-name [color]
   (or (:color color)

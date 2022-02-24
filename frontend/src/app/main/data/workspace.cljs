@@ -89,7 +89,7 @@
 
 (s/def ::layout-flags (s/coll-of ::layout-flag))
 
-(def default-layout
+(def default-workspace-layout
   #{:sitemap
     :layers
     :element-options
@@ -115,28 +115,20 @@
 
 (s/def ::options-mode #{:design :prototype})
 
-(def workspace-local-default
+(def default-workspace-global
+  {:options-mode :design})
+
+(def default-workspace-local
   {:zoom 1
    :flags #{}
    :selected (d/ordered-set)
-   :selected-assets {:components #{}
-                     :graphics #{}
-                     :colors #{}
-                     :typographies #{}}
-   :expanded {}
-   :tooltip nil
-   :options-mode :design
-   :draw-interaction-to nil
-   :left-sidebar? true
-   :right-sidebar? true
-   :color-for-rename nil
-   :selected-palette-colorpicker :recent
-   :selected-palette :recent
-   :selected-palette-size :big
-   :assets-files-open {}
-   :picking-color? false
-   :picked-color nil
-   :picked-color-select false})
+   :selected-assets
+   {:components #{}
+    :graphics #{}
+    :colors #{}
+    :typographies #{}}
+
+   :expanded {}})
 
 (defn ensure-layout
   [lname]
@@ -151,13 +143,15 @@
                       (set/difference todel)
                       (set/union toadd))))))))
 
-(defn setup-layout
+(defn initialize
   [lname]
   (us/verify (s/nilable ::us/keyword) lname)
-  (ptk/reify ::setup-layout
+  (ptk/reify ::initialize
     ptk/UpdateEvent
     (update [_ state]
-      (update state :workspace-layout #(or % default-layout)))
+      (-> state
+          (update :workspace-layout #(or % default-workspace-layout))
+          (update :workspace-global #(or % default-workspace-global))))
 
     ptk/WatchEvent
     (watch [_ _ _]
@@ -277,7 +271,7 @@
             page    (get-in state [:workspace-data :pages-index page-id])
             page-id (:id page)
             local   (-> state
-                        (get-in [:workspace-cache page-id] workspace-local-default)
+                        (get-in [:workspace-cache page-id] default-workspace-local)
                         (assoc :selected (d/ordered-set)))]
         (-> state
             (assoc :current-page-id page-id)
@@ -449,7 +443,7 @@
   (ptk/reify ::set-options-mode
     ptk/UpdateEvent
     (update [_ state]
-      (assoc-in state [:workspace-local :options-mode] mode))))
+      (assoc-in state [:workspace-global :options-mode] mode))))
 
 ;; --- Tooltip
 
@@ -459,8 +453,8 @@
     ptk/UpdateEvent
     (update [_ state]
       (if (string? content)
-        (assoc-in state [:workspace-local :tooltip] content)
-        (assoc-in state [:workspace-local :tooltip] nil)))))
+        (assoc-in state [:workspace-global :tooltip] content)
+        (assoc-in state [:workspace-global :tooltip] nil)))))
 
 ;; --- Viewport Sizing
 
@@ -1940,7 +1934,7 @@
 
     ptk/UpdateEvent
     (update [_ state]
-      (assoc-in state [:workspace-local :show-distances?] value))))
+      (assoc-in state [:workspace-global :show-distances?] value))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactions

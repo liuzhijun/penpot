@@ -289,10 +289,62 @@
 (defn resize-parents
   [changes ids]
   (assert-page-id changes)
-  (let [page-id (::page-id (meta changes))
-        shapes  (vec ids)]
-        (-> changes
-            (update :redo-changes conj {:type :reg-objects :page-id page-id :shapes shapes})
-            (update :undo-changes conj {:type :reg-objects :page-id page-id :shapes shapes})
-            (apply-changes-local (count ids)))))
+  (let [objects (-> changes meta ::file-data (get-in [:pages-index uuid/zero :objects]))
+        xform   (comp
+                  (mapcat #(cons % (cph/get-parent-ids objects %)))
+                  (map (d/getf objects))
+                  (filter #(contains? #{:group :bool} (:type %)))
+                  (distinct))
+        all-parents (sequence xform ids)]
+    (js/console.log "all-parents" (clj->js all-parents))
 
+
+
+
+    (let [page-id (::page-id (meta changes))
+          shapes  (vec ids)]
+      (-> changes
+          (update :redo-changes conj {:type :reg-objects :page-id page-id :shapes shapes})
+          (update :undo-changes conj {:type :reg-objects :page-id page-id :shapes shapes})
+          (apply-changes-local (count ids))))))
+
+    ;; (letfn [(reg-objects [objects]
+    ;;           (let [lookup    (d/getf objects)
+    ;;                 update-fn #(d/update-when %1 %2 update-group %1)
+    ;;                 xform     (comp
+    ;;                             (mapcat #(cons % (cph/get-parent-ids objects %)))
+    ;;                             (filter #(contains? #{:group :bool} (-> % lookup :type)))
+    ;;                             (distinct))]
+    ;;
+    ;;             (->> (sequence xform shapes)
+    ;;                  (reduce update-fn objects))))
+    ;;
+    ;;       (set-mask-selrect [group children]
+    ;;         (let [mask (first children)]
+    ;;           (-> group
+    ;;               (assoc :selrect (-> mask :selrect))
+    ;;               (assoc :points  (-> mask :points))
+    ;;               (assoc :x       (-> mask :selrect :x))
+    ;;               (assoc :y       (-> mask :selrect :y))
+    ;;               (assoc :width   (-> mask :selrect :width))
+    ;;               (assoc :height  (-> mask :selrect :height))
+    ;;               (assoc :flip-x  (-> mask :flip-x))
+    ;;               (assoc :flip-y  (-> mask :flip-y)))))
+    ;;
+    ;;       (update-group [group objects]
+    ;;         (let [lookup   (d/getf objects)
+    ;;               children (->> group :shapes (map lookup))]
+    ;;           (cond
+    ;;             ;; If the group is empty we don't make any changes. Will be removed by a later process
+    ;;             (empty? children)
+    ;;             group
+    ;;
+    ;;             (= :bool (:type group))
+    ;;             (gshb/update-bool-selrect group children objects)
+    ;;
+    ;;             (:masked-group? group)
+    ;;             (set-mask-selrect group children)
+    ;;
+    ;;             :else
+    ;;             (gsh/update-group-selrect group children))))]
+    ;;
